@@ -11,12 +11,7 @@ const log = (m) => console.log("[mesh] " + m);
 const report = { started: new Date().toISOString() };
 
 function writeInfo(extra) {
-  try {
-    writeFileSync("output/meshv3__info.json", JSON.stringify({ ...report, ...extra }));
-    log("info written");
-  } catch (e) {
-    log("info write failed: " + e.message);
-  }
+  try { writeFileSync("output/meshv4__info.json", JSON.stringify({ ...report, ...extra })); log("info written"); } catch (e) { log("info write failed: " + e.message); }
 }
 
 try {
@@ -30,11 +25,7 @@ try {
           const text = await res.text();
           if (text.length < 100) throw new Error("too short");
           return text;
-        } catch (e) {
-          lastErr = e;
-          log("retry " + a + " failed: " + e.message);
-          await new Promise((r) => setTimeout(r, 2000));
-        }
+        } catch (e) { lastErr = e; log("retry " + a + " failed: " + e.message); await new Promise((r) => setTimeout(r, 2000)); }
       }
     }
     throw lastErr;
@@ -47,7 +38,6 @@ try {
   writeFileSync("admin150.geojson", text);
   log("downloaded " + text.length + " chars");
 
-  log("installing mapshaper 0.7.76");
   execSync("npm install --no-save --no-audit --no-fund mapshaper@0.7.76 2>&1", { timeout: 240000, encoding: "utf8", maxBuffer: 10 * 1024 * 1024 });
   log("npm install done");
 
@@ -70,20 +60,15 @@ try {
   const { scale, translate } = topo.transform;
   const arcsLL = topo.arcs.map((arc) => {
     let x = 0, y = 0;
-    return arc.map(([dx, dy]) => {
-      x += dx; y += dy;
-      return [x * scale[0] + translate[0], y * scale[1] + translate[1]];
-    });
+    return arc.map(([dx, dy]) => { x += dx; y += dy; return [x * scale[0] + translate[0], y * scale[1] + translate[1]]; });
   });
-  const sample = feats[0];
-  log("feats=" + feats.length + " arcs=" + arcsLL.length + " sampleKeys=" + Object.keys(sample).join(","));
-  log("sampleProps=" + (sample.properties ? Object.keys(sample.properties).slice(0, 12).join(",") : "none"));
+  log("feats=" + feats.length + " arcs=" + arcsLL.length);
 
   const users = new Map();
   const area = [];
   feats.forEach((f, fi) => {
     const geom = f.geometry || f;
-    const bx0v = { x: 1e9, y: 1e9, X: -1e9, Y: -1e9 };
+    const bx = { x: 1e9, y: 1e9, X: -1e9, Y: -1e9 };
     const walk = (rings) => {
       for (const refs of rings) {
         if (!refs) continue;
@@ -95,21 +80,21 @@ try {
           const a = arcsLL[idx];
           if (a) for (const [lon, lat] of a) {
             const x = qx(lon), y = qy(lat);
-            if (x < bx0v.x) bx0v.x = x;
-            if (x > bx0v.X) bx0v.X = x;
-            if (y < bx0v.y) bx0v.y = y;
-            if (y > bx0v.Y) bx0v.Y = y;
+            if (x < bx.x) bx.x = x;
+            if (x > bx.X) bx.X = x;
+            if (y < bx.y) bx.y = y;
+            if (y > bx.Y) bx.Y = y;
           }
         }
       }
     };
     if (geom.type === "Polygon") walk(geom.arcs);
     else if (geom.type === "MultiPolygon") for (const poly of geom.arcs) walk(poly);
-    area.push(Math.max(0, (bx0v.X - bx0v.x) * (bx0v.Y - bx0v.y)));
+    area.push(Math.max(0, (bx.X - bx.x) * (bx.Y - bx.y)));
   });
   log("arcsWithUsers=" + users.size);
 
-  const MIN_AREA = 120;
+  const MIN_AREA = 50;
   const meshIdx = [];
   for (const [idx, us] of users) {
     const uniq = Array.from(new Set(us));
@@ -158,7 +143,7 @@ try {
   const meshStr = JSON.stringify({ step: step, count: mesh.length, lines: mesh });
   const n = Math.ceil(meshStr.length / CHUNK);
   for (let i = 0; i < n; i++) {
-    writeFileSync("output/meshv3__" + String(i).padStart(3, "0") + ".txt", meshStr.slice(i * CHUNK, (i + 1) * CHUNK));
+    writeFileSync("output/meshv4__" + String(i).padStart(3, "0") + ".txt", meshStr.slice(i * CHUNK, (i + 1) * CHUNK));
   }
   writeInfo({ ok: true, chunks: n, length: meshStr.length, step: step, lines: mesh.length });
   log("DONE mesh: " + n + " chunks");
