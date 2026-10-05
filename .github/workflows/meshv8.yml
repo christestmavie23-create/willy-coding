@@ -1,4 +1,4 @@
-name: Build meshv8 (admin-2)
+name: Build meshv8 (admin-2) # v2
 on:
   push:
     branches: [geo-atelier-prep]
