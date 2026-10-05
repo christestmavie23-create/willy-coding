@@ -16,8 +16,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
-      - name: Download and chunk
-        run: node scripts/process.mjs
+      - name: Build admin-1 mesh
+        run: node scripts/process2.mjs
       - name: Commit chunks
         run: |
           git config user.name "github-actions[bot]"
@@ -26,6 +26,6 @@ jobs:
           if git diff --staged --quiet; then
             echo "nothing to commit"
           else
-            git commit -m "geo data chunks [skip ci]"
+            git commit -m "mesh chunks [skip ci]"
             git push
           fi
