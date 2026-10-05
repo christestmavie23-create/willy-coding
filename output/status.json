@@ -1,0 +1,10 @@
+{
+ "started": "2026-10-05T09:24:44.832Z",
+ "sources": {
+  "countries110": "ok",
+  "rivers110": "ok",
+  "lakes110": "ok",
+  "admin150": "ok"
+ },
+ "finished": "2026-10-05T09:24:45.712Z"
+}
