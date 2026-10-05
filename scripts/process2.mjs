@@ -10,12 +10,12 @@ mkdirSync("output", { recursive: true });
 const log = (m) => console.log("[mesh] " + m);
 const report = { started: new Date().toISOString() };
 
-function writeManifest(extra) {
+function writeInfo(extra) {
   try {
-    writeFileSync("output/mesh110__manifest.json", JSON.stringify({ ...report, ...extra }));
-    log("manifest written");
+    writeFileSync("output/mesh110__info.json", JSON.stringify({ ...report, ...extra }));
+    log("info written");
   } catch (e) {
-    log("manifest write failed: " + e.message);
+    log("info write failed: " + e.message);
   }
 }
 
@@ -47,14 +47,20 @@ try {
   writeFileSync("admin150.geojson", text);
   log("downloaded " + text.length + " chars");
 
+  log("installing mapshaper 0.7.76");
+  const npmOut = execSync("npm install --no-save --no-audit --no-fund mapshaper@0.7.76 2>&1", { timeout: 240000, encoding: "utf8", maxBuffer: 10 * 1024 * 1024 });
+  log("npm install done");
+
   let topoText = null;
   try {
-    execSync("npx -y mapshaper@1.0.1 admin150.geojson -simplify visvalingam 10% keep-shapes -clean -o format=topojson quantization=1e5 admin150.topo.json", { stdio: "inherit", timeout: 300000 });
+    const out = execSync("node_modules/.bin/mapshaper admin150.geojson -simplify visvalingam 10% keep-shapes -clean -o admin150.topo.json format=topojson quantization=1e5 2>&1", { timeout: 300000, encoding: "utf8", maxBuffer: 10 * 1024 * 1024 });
+    log("mapshaper said: " + String(out).slice(0, 400));
     topoText = readFileSync("admin150.topo.json", "utf8");
     log("mapshaper ok: " + topoText.length + " chars");
   } catch (e) {
-    log("mapshaper failed: " + e.message);
-    writeManifest({ error: "mapshaper: " + e.message });
+    const errText = ((e && e.stdout ? String(e.stdout) : "") + " || " + (e && e.stderr ? String(e.stderr) : "") + " || " + (e && e.message || e)).slice(0, 800);
+    log("mapshaper failed: " + errText);
+    writeInfo({ error: "mapshaper: " + errText });
     process.exit(0);
   }
 
@@ -150,10 +156,10 @@ try {
   for (let i = 0; i < n; i++) {
     writeFileSync("output/mesh110__" + String(i).padStart(3, "0") + ".txt", meshStr.slice(i * CHUNK, (i + 1) * CHUNK));
   }
-  writeManifest({ ok: true, chunks: n, length: meshStr.length, step: step, lines: mesh.length });
+  writeInfo({ ok: true, chunks: n, length: meshStr.length, step: step, lines: mesh.length });
   log("DONE mesh: " + n + " chunks");
 } catch (e) {
   log("FATAL: " + (e && e.stack || e));
-  writeManifest({ error: String(e && e.message || e) });
+  writeInfo({ error: String(e && e.message || e) });
   process.exit(0);
 }
