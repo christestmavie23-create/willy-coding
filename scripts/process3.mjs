@@ -14,11 +14,14 @@ function writeInfo(extra) {
 }
 
 try {
-  log("downloading 10m admin-2 ...");
-  execSync("curl -sL -o adm2.zip https://naturalearth.s3.amazonaws.com/10m/cultural/ne_10m_admin_2_countries.zip", { timeout: 600000, encoding: "utf8" });
-  log("unzipping ...");
-  execSync("unzip -o -q adm2.zip -d adm2", { timeout: 120000, encoding: "utf8" });
-  const shp = execSync("ls adm2 | grep -i shp | head -1", { encoding: "utf8" }).trim();
+    log("downloading NE 10m admin-2 counties ...");
+  const NEB = "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/10m_cultural/ne_10m_admin_2_counties";
+  for (const ext of ["shp", "dbf", "shx", "prj", "cpg"]) {
+    execSync("curl -sL -o adm2." + ext + " " + NEB + "." + ext, { timeout: 300000, encoding: "utf8" });
+  }
+  log("shp size = " + readFileSync("adm2.shp").length);
+
+  const shp = "adm2.shp";
   log("shp = " + shp);
 
   execSync("npm install --no-save --no-audit --no-fund mapshaper@0.7.76 2>&1", { timeout: 240000, encoding: "utf8" });
@@ -39,7 +42,8 @@ try {
 
   // propriété pays
   const sample = feats[0];
-  const sprops = ((sample && sample.properties) || (sample && sample.geometry && sample.geometry.properties) || {});
+  const sprops = ((sample && sample.properties) || (sample && sample.geo
+metry && sample.geometry.properties) || {});
   log("prop keys: " + Object.keys(sprops).join(","));
   const CAND = ["admin", "ADMIN", "sovereignt", "SOVEREIGNT", "country", "COUNTRY", "gn_name"];
   let ckey = null;
@@ -98,7 +102,8 @@ try {
     if (!byAdmin.has(u.admin)) byAdmin.set(u.admin, []);
     byAdmin.get(u.admin).push(u);
   }
-  for (const arr of byAdmin.values()) arr.sort((x, y) => y.area - x.area);
+  for (const arr of byAdmin.
+values()) arr.sort((x, y) => y.area - x.area);
   log("admins=" + byAdmin.size);
 
   const adminIndex = new Map();
@@ -153,7 +158,8 @@ try {
   }
   adminNames.length = 0; adminIndex.clear();
   mesh = buildMesh(quota, step);
-  str = JSON.stringify({ step: step, admins: adminNames, count: mesh.length, lines: mesh });
+  str = JSON.stringify({ step: step, admins: adminNames
+, count: mesh.length, lines: mesh });
   log("FINAL quota=" + quota + " step=" + step + " lines=" + mesh.length + " chars=" + str.length);
 
   const n = Math.ceil(str.length / CHUNK);
