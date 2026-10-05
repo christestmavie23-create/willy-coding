@@ -1,0 +1,31 @@
+name: split-data
+on:
+  push:
+    branches: [geo-atelier-prep]
+    paths: [".github/workflows/split-data.yml"]
+  workflow_dispatch: {}
+permissions:
+  contents: write
+jobs:
+  split:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: geo-atelier-prep
+      - name: Split atelier-data.json
+        run: |
+          mkdir -p output/parts
+          python3 <<'EOF'
+          s = open('atelier-data.json', encoding='utf-8').read()
+          n = 20000
+          for i in range((len(s)+n-1)//n):
+              open('output/parts/d__%03d.txt' % i, 'w', encoding='utf-8').write(s[i*n:(i+1)*n])
+          print('chars', len(s), 'parts', (len(s)+n-1)//n)
+          EOF
+      - name: Commit parts
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add output/parts
+          git diff --staged --quiet && echo "no changes" || (git commit -m "split atelier-data for download" && git push)
