@@ -1,0 +1,1 @@
+{"started":"2026-10-05T09:43:02.618Z","error":"mapshaper: Command failed: npx -y mapshaper@1.0.1 admin150.geojson -simplify visvalingam 10% keep-shapes -clean -o format=topojson quantization=1e5 admin150.topo.json"}
