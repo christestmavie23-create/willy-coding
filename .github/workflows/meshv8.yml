@@ -1,0 +1,33 @@
+name: Build meshv8 (admin-2)
+on:
+  push:
+    branches: [geo-atelier-prep]
+    paths: [".github/workflows/meshv8.yml"]
+  workflow_dispatch: {}
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: geo-atelier-prep
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Build admin-2 mesh
+        run: node scripts/process3.mjs || true
+      - name: Commit chunks
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add output/meshv8__*
+          if git diff --staged --quiet; then
+            echo "nothing to commit"
+          else
+            git commit -m "meshv8 chunks [skip ci]"
+            git push
+          fi
