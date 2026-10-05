@@ -10,7 +10,7 @@ mkdirSync("output", { recursive: true });
 const log = (m) => console.log("[mesh] " + m);
 const report = { started: new Date().toISOString() };
 function writeInfo(extra) {
-  try { writeFileSync("output/meshv6__info.json", JSON.stringify(Object.assign({}, report, extra))); log("info written"); }
+  try { writeFileSync("output/meshv7__info.json", JSON.stringify(Object.assign({}, report, extra))); log("info written"); }
   catch (e) { log("info fail: " + e.message); }
 }
 
@@ -119,29 +119,42 @@ try {
     return out;
   }
 
-  let mesh = [], step = 0.9, minArea = 50, str = "";
-  const done = false;
+  // --- v7 : quota par pays (chaque pays garde ses N plus grandes divisions) ---
+  const byAdmin = new Map();
+  for (const c of cand) {
+    if (!byAdmin.has(c.admin)) byAdmin.set(c.admin, []);
+    byAdmin.get(c.admin).push(c);
+  }
+  for (const arr of byAdmin.values()) arr.sort((x, y) => y.minA - x.minA);
+  log("admins with candidates=" + byAdmin.size);
+
+  let mesh = [], step = 0.9, quota = 12, str = "";
   outer:
-  for (const mA of [50, 80, 120, 180, 260, 400, 600, 900]) {
-    const sub = cand.filter((c) => c.minA >= mA);
-    for (const t of [0.9, 1.3, 1.7, 2.2, 2.8, 3.5, 4.5]) {
+  for (const N of [12, 10, 8, 6, 5, 4, 3]) {
+    const sub = [];
+    for (const arr of byAdmin.values()) for (let i = 0; i < Math.min(N, arr.length); i++) sub.push(arr[i]);
+    for (const t of [0.9, 1.3, 1.7, 2.2, 2.8, 3.5]) {
       mesh = buildMesh(sub, t);
-      step = t; minArea = mA;
+      step = t; quota = N;
       str = JSON.stringify({ step: step, admins: adminNames, count: mesh.length, lines: mesh });
-      log("minA=" + mA + " step=" + t + " lines=" + mesh.length + " chars=" + str.length);
-      if (str.length <= 60000) break outer;
+      log("quota=" + N + " step=" + t + " lines=" + mesh.length + " chars=" + str.length);
+      if (str.length <= 65000) break outer;
     }
   }
 
   const n = Math.ceil(str.length / CHUNK);
-  for (let i = 0; i < n; i++) writeFileSync("output/meshv6__" + String(i).padStart(3, "0") + ".txt", str.slice(i * CHUNK, (i + 1) * CHUNK));
+  for (let i = 0; i < n; i++) writeFileSync("output/meshv7__" + String(i).padStart(3, "0") + ".txt", str.slice(i * CHUNK, (i + 1) * CHUNK));
   const WATCH = ["France","Germany","Spain","Italy","Poland","India","United Kingdom","Ivory Coast","Côte d'Ivoire","Nigeria","Ghana","Senegal","Mali","Cameroon","Mexico","Indonesia","Japan","United States of America","Brazil","Australia","China","Ukraine","Russia","Canada","Turkey","Egypt","South Africa","Kenya","Morocco","Algeria","Madagascar","Peru","Colombia","Argentina","Chile"];
+  // lignes FINALES par admin (post-sélection)
+  const finalByAdmin = new Map();
+  for (const L of mesh) finalByAdmin.set(adminNames[L.a], (finalByAdmin.get(adminNames[L.a]) || 0) + 1);
   const watch = {};
-  for (const c of WATCH) watch[c] = keptByAdmin.get(c) || 0;
-  const top = Array.from(keptByAdmin).map((e) => ({ a: e[0], n: e[1] })).sort((x, y) => y.n - x.n).slice(0, 25);
-  writeFileSync("output/meshv6__diag.json", JSON.stringify({ feats: feats.length, arcs: arcsLL.length, candidates: cand.length, countries: keptByAdmin.size, step: step, minArea: minArea, lines: mesh.length, admins: adminNames.length, chars: str.length, watch: watch, top: top }));
-  writeInfo({ ok: true, chunks: n, length: str.length, step: step, minArea: minArea, lines: mesh.length });
-  log("DONE meshv6: " + n + " chunks lines=" + mesh.length);
+  for (const c of WATCH) watch[c] = finalByAdmin.get(c) || 0;
+  const top = Array.from(finalByAdmin).map((e) => ({ a: e[0], n: e[1] })).sort((x, y) => y.n - x.n).slice(0, 25);
+  const zeroAdmins = adminNames.filter((nm) => !finalByAdmin.has(nm));
+  writeFileSync("output/meshv7__diag.json", JSON.stringify({ feats: feats.length, arcs: arcsLL.length, candidates: cand.length, countries: byAdmin.size, step: step, quota: quota, lines: mesh.length, admins: adminNames.length, covered: finalByAdmin.size, zeroAdmins: zeroAdmins, chars: str.length, watch: watch, top: top }));
+  writeInfo({ ok: true, chunks: n, length: str.length, step: step, quota: quota, lines: mesh.length, covered: finalByAdmin.size });
+  log("DONE meshv7: " + n + " chunks lines=" + mesh.length + " covered=" + finalByAdmin.size);
 } catch (e) {
   log("FATAL: " + (e && e.stack || e));
   writeInfo({ error: String((e && e.message) || e).slice(0, 500) });
