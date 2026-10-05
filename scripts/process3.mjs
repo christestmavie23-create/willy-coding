@@ -9,25 +9,22 @@ const qy = (lat) => Math.round((90 - lat) / 180 * H);
 mkdirSync("output", { recursive: true });
 const log = (m) => console.log("[meshv8] " + m);
 function writeInfo(extra) {
-  try { writeFileSync("output/meshv8__info.json", JSON.stringify(Object.assign({}, extra))); log("info written"); }
+  try { writeFileSync("output/meshv8__info.json", JSON.stringify(extra)); log("info written"); }
   catch (e) { log("info fail: " + e.message); }
 }
 
 try {
-    log("downloading NE 10m admin-2 counties ...");
+  log("downloading NE 10m admin-2 counties ...");
   const NEB = "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/10m_cultural/ne_10m_admin_2_counties";
   for (const ext of ["shp", "dbf", "shx", "prj", "cpg"]) {
     execSync("curl -sL -o adm2." + ext + " " + NEB + "." + ext, { timeout: 300000, encoding: "utf8" });
   }
   log("shp size = " + readFileSync("adm2.shp").length);
 
-  const shp = "adm2.shp";
-  log("shp = " + shp);
-
   execSync("npm install --no-save --no-audit --no-fund mapshaper@0.7.76 2>&1", { timeout: 240000, encoding: "utf8" });
   log("npm install done");
 
-  execSync("node_modules/.bin/mapshaper adm2/" + shp + " -simplify visvalingam 6% keep-shapes -clean -o adm2.topo.json format=topojson quantization=1e5 2>&1", { timeout: 1200000, encoding: "utf8", maxBuffer: 40 * 1024 * 1024 });
+  execSync("node_modules/.bin/mapshaper adm2.shp -simplify visvalingam 6% keep-shapes -clean -o adm2.topo.json format=topojson quantization=1e5 2>&1", { timeout: 1200000, encoding: "utf8", maxBuffer: 40 * 1024 * 1024 });
   const topoText = readFileSync("adm2.topo.json", "utf8");
   log("topo ok: " + topoText.length + " chars");
   const topo = JSON.parse(topoText);
@@ -40,11 +37,9 @@ try {
   });
   log("feats=" + feats.length + " arcs=" + arcsLL.length);
 
-  // propriété pays
   const sample = feats[0];
-  const sprops = ((sample && sample.properties) || (sample && sample.geo
-metry && sample.geometry.properties) || {});
-  log("prop keys: " + Object.keys(sprops).join(","));
+  const sprops = ((sample && sample.properties) || {});
+  log("prop keys: " + Object.keys(sprops).slice(0, 20).join(","));
   const CAND = ["admin", "ADMIN", "sovereignt", "SOVEREIGNT", "country", "COUNTRY", "gn_name"];
   let ckey = null;
   for (const k of Object.keys(sprops)) if (!ckey && CAND.includes(k)) ckey = k;
@@ -56,18 +51,8 @@ metry && sample.geometry.properties) || {});
     const a = arcsLL[idx] || [];
     return ref < 0 ? a.slice().reverse() : a;
   }
-  function shoelace(pts) {
-    let s = 0;
-    for (let i = 0; i < pts.length; i++) {
-      const [x1, y1] = pts[i];
-      const [x2, y2] = pts[(i + 1) % pts.length];
-      s += (qx(x1) * qy(y2)) - (qx(x2) * qy(y1));
-    }
-    return Math.abs(s) / 2;
-  }
-  // unités : pour chaque feature, anneau extérieur de chaque polygone
   const units = [];
-  feats.forEach((f, fi) => {
+  feats.forEach((f) => {
     const geom = f.geometry || f;
     const props = f.properties || {};
     const admin = props[ckey] || "?";
@@ -83,7 +68,6 @@ metry && sample.geometry.properties) || {});
   });
   log("units (outer rings)=" + units.length);
 
-  // aire approx (bbox) pour classement rapide
   for (const u of units) {
     let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
     for (const ref of u.refs) {
@@ -102,8 +86,7 @@ metry && sample.geometry.properties) || {});
     if (!byAdmin.has(u.admin)) byAdmin.set(u.admin, []);
     byAdmin.get(u.admin).push(u);
   }
-  for (const arr of byAdmin.
-values()) arr.sort((x, y) => y.area - x.area);
+  for (const arr of byAdmin.values()) arr.sort((x, y) => y.area - x.area);
   log("admins=" + byAdmin.size);
 
   const adminIndex = new Map();
@@ -125,7 +108,7 @@ values()) arr.sort((x, y) => y.area - x.area);
     if (abs.length >= 4) {
       const fx = abs[0], fy = abs[1];
       const lx2 = abs[abs.length - 2], ly2 = abs[abs.length - 1];
-      if (Math.abs(fx - lx2) + Math.abs(fy - ly2) > 2) { abs.push(fx, fy); }
+      if (Math.abs(fx - lx2) + Math.abs(fy - ly2) > 2) abs.push(fx, fy);
     }
     return abs;
   }
@@ -158,8 +141,7 @@ values()) arr.sort((x, y) => y.area - x.area);
   }
   adminNames.length = 0; adminIndex.clear();
   mesh = buildMesh(quota, step);
-  str = JSON.stringify({ step: step, admins: adminNames
-, count: mesh.length, lines: mesh });
+  str = JSON.stringify({ step: step, admins: adminNames, count: mesh.length, lines: mesh });
   log("FINAL quota=" + quota + " step=" + step + " lines=" + mesh.length + " chars=" + str.length);
 
   const n = Math.ceil(str.length / CHUNK);
