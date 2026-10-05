@@ -27,14 +27,15 @@ try {
 
   const units = [];
   const admins = new Map();
+  const fails = [];
   let done = 0;
   for (const code of codes) {
     const zip = "gadm/" + code + ".zip";
     const jsonPath = "gadm/gadm41_" + code + "_2.json";
     try {
-      execSync("curl -sL -o " + zip + " https://geodata.ucdavis.edu/gadm/gadm4.1/json/gadm41_" + code + "_2.json.zip", { timeout: 180000, encoding: "utf8" });
+      execSync("curl -sL --retry 3 --retry-delay 2 -o " + zip + " https://geodata.ucdavis.edu/gadm/gadm4.1/json/gadm41_" + code + "_2.json.zip", { timeout: 180000, encoding: "utf8" });
       execSync("unzip -o -q " + zip + " -d gadm", { timeout: 60000, encoding: "utf8" });
-      if (!existsSync(jsonPath)) { log("no json for " + code); continue; }
+      if (!existsSync(jsonPath)) { fails.push(code + ":nojson"); continue; }
       const gj = JSON.parse(readFileSync(jsonPath, "utf8"));
       let country = null;
       for (const f of gj.features || []) {
@@ -48,7 +49,7 @@ try {
       if (country) admins.set(country, true);
       done++;
       if (done % 40 === 0) log("processed " + done + "/" + codes.length + " units=" + units.length);
-    } catch (e) { log("fail " + code + ": " + String(e.message).slice(0, 80)); }
+    } catch (e) { fails.push(code + ":" + String(e.message).slice(0, 40)); log("fail " + code + ": " + String(e.message).slice(0, 80)); }
   }
   log("units=" + units.length + " countries=" + admins.size);
 
@@ -113,13 +114,13 @@ try {
 
   let mesh = [], step = 3, quota = 8, str = "";
   outer:
-  for (const N of [16, 14, 12, 10, 8, 6]) {
-    for (const t of [1.8, 2.2, 2.6, 3.0, 3.6, 4.2, 5.0]) {
+  for (const t of [2.6, 3.0, 3.6, 4.2, 5.0, 6.0]) {
+    for (const N of [16, 14, 12, 10, 8, 6, 5, 4]) {
       mesh = buildMesh(N, t);
       step = t; quota = N;
       str = JSON.stringify({ step: step, admins: adminNames, count: mesh.length, lines: mesh });
       log("quota=" + N + " step=" + t + " lines=" + mesh.length + " chars=" + str.length);
-      if (str.length <= 115000) break outer;
+      if (str.length <= 125000) break outer;
     }
   }
   adminNames.length = 0; adminIndex.clear();
@@ -129,12 +130,12 @@ try {
 
   const n = Math.ceil(str.length / CHUNK);
   for (let i = 0; i < n; i++) writeFileSync("output/meshv8__" + String(i).padStart(3, "0") + ".txt", str.slice(i * CHUNK, (i + 1) * CHUNK));
-  const WATCH = ["France","Germany","United States","Ivory Coast","CÃ´te d'Ivoire","Cameroon","Nigeria","Ghana","India","Brazil","Kenya","Mexico","Spain","Poland","China","Australia","United Kingdom","Canada","Turkey"];
+  const WATCH = ["France","Germany","United States","Ivory Coast","CÃÂ´te d'Ivoire","Cameroon","Nigeria","Ghana","India","Brazil","Kenya","Mexico","Spain","Poland","China","Australia","United Kingdom","Canada","Turkey"];
   const per = new Map();
   for (const L of mesh) per.set(adminNames[L.a], (per.get(adminNames[L.a]) || 0) + 1);
   const watch = {};
   for (const c of WATCH) watch[c] = per.get(c) || 0;
-  writeFileSync("output/meshv8__diag.json", JSON.stringify({ codes: codes.length, units: units.length, admins: byAdmin.size, lines: mesh.length, chars: str.length, step: step, quota: quota, covered: per.size, watch: watch }));
+  writeFileSync("output/meshv8__diag.json", JSON.stringify({ codes: codes.length, fails: fails, units: units.length, admins: byAdmin.size, lines: mesh.length, chars: str.length, step: step, quota: quota, covered: per.size, watch: watch }));
   writeInfo({ ok: true, chunks: n, length: str.length, step: step, quota: quota, lines: mesh.length, covered: per.size });
   log("DONE meshv8: " + n + " chunks");
 } catch (e) {
