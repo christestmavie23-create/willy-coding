@@ -65,7 +65,7 @@ try {
 
   const byAdmin = new Map();
   for (const u of units) {
-    if (u.area < 180) continue;
+    if (u.area < 12) continue;
     if (!byAdmin.has(u.admin)) byAdmin.set(u.admin, []);
     byAdmin.get(u.admin).push(u);
   }
@@ -113,13 +113,13 @@ try {
 
   let mesh = [], step = 3, quota = 8, str = "";
   outer:
-  for (const N of [12, 10, 8, 6, 5, 4, 3]) {
-    for (const t of [2.2, 2.6, 3.0, 3.6, 4.2, 5.0, 6.0]) {
+  for (const N of [16, 14, 12, 10, 8, 6]) {
+    for (const t of [1.8, 2.2, 2.6, 3.0, 3.6, 4.2, 5.0]) {
       mesh = buildMesh(N, t);
       step = t; quota = N;
       str = JSON.stringify({ step: step, admins: adminNames, count: mesh.length, lines: mesh });
       log("quota=" + N + " step=" + t + " lines=" + mesh.length + " chars=" + str.length);
-      if (str.length <= 105000) break outer;
+      if (str.length <= 115000) break outer;
     }
   }
   adminNames.length = 0; adminIndex.clear();
@@ -129,7 +129,7 @@ try {
 
   const n = Math.ceil(str.length / CHUNK);
   for (let i = 0; i < n; i++) writeFileSync("output/meshv8__" + String(i).padStart(3, "0") + ".txt", str.slice(i * CHUNK, (i + 1) * CHUNK));
-  const WATCH = ["France","Germany","United States","Ivory Coast","Côte d'Ivoire","Cameroon","Nigeria","Ghana","India","Brazil","Kenya","Mexico","Spain","Poland","China","Australia","United Kingdom","Canada","Turkey"];
+  const WATCH = ["France","Germany","United States","Ivory Coast","CÃ´te d'Ivoire","Cameroon","Nigeria","Ghana","India","Brazil","Kenya","Mexico","Spain","Poland","China","Australia","United Kingdom","Canada","Turkey"];
   const per = new Map();
   for (const L of mesh) per.set(adminNames[L.a], (per.get(adminNames[L.a]) || 0) + 1);
   const watch = {};
