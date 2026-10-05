@@ -1,4 +1,4 @@
-name: Build meshv8 (admin-2) # v3
+name: Build meshv8 (GADM level-2) # v4
 on:
   push:
     branches: [geo-atelier-prep]
@@ -17,7 +17,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
-      - name: Build admin-2 mesh
+      - name: Build admin-2 mesh (GADM)
         run: node scripts/process3.mjs || true
       - name: Commit chunks
         if: always()
