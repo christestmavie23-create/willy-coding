@@ -1,1 +1,1 @@
-{"error":"Command failed: unzip -o -q adm2.zip -d adm2\n[adm2.zip]\n  End-of-central-directory signature not found.  Either this file is not\n  a zipfile, or it constitutes one disk of a multi-part archive.  In the\n  latter case the central directory and zipfile comment will be found on\n  the last disk(s) of this archive.\nunzip:  cannot find zipfile directory in one of adm2.zip or\n        adm2.zip.zip, and cannot find adm2.zip.ZIP, period.\n"}
+{"ok":true,"chunks":1,"length":4571,"step":1.6,"quota":18,"lines":18,"covered":1}
